@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Navega — Infraestrutura 20/06</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0D1B2A;
+    --blue: #1A6EBD;
+    --blue-light: #E8F2FB;
+    --blue-mid: #B5D4F4;
+    --teal: #0F6E56;
+    --teal-light: #E1F5EE;
+    --amber: #BA7517;
+    --amber-light: #FAEEDA;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --green: #3B6D11;
+    --green-light: #EAF3DE;
+    --gray-50: #F7F7F5;
+    --gray-100: #EDECEB;
+    --gray-200: #D3D1C7;
+    --gray-400: #888780;
+    --gray-600: #5F5E5A;
+    --gray-800: #2C2C2A;
+    --white: #FFFFFF;
+    --text: #0D1B2A;
+    --text-muted: #5F5E5A;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--gray-50);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ── Sync status ── */
+  #sync-status {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    background: var(--navy);
+    color: white;
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 6px 14px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 500;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  #sync-status.visible { opacity: 1; }
+  #sync-status .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #4CAF50;
+    animation: pulse 1.5s infinite;
+  }
+  #sync-status.syncing .dot { background: var(--amber); animation: pulse 0.6s infinite; }
+  #sync-status.error .dot { background: var(--red); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Online users ── */
+  #online-users {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .user-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+    border: 2px solid var(--navy);
+    color: white;
+    margin-left: -6px;
+    transition: transform 0.2s;
+  }
+  .user-avatar:first-child { margin-left: 0; }
+  .user-avatar:hover { transform: scale(1.15); z-index: 1; }
+
+  /* ── Header ── */
+  header {
+    background: var(--navy);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo-badge {
+    background: var(--blue);
+    color: white;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+  .header-title { color: white; font-size: 15px; font-weight: 500; }
+  .header-date { color: #7AA7CC; font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .countdown {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 6px 14px;
+    text-align: center;
+  }
+  .countdown-days { color: white; font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; line-height: 1; }
+  .countdown-label { color: #7AA7CC; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
+
+  /* ── Tabs ── */
+  .tabs-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    position: sticky;
+    top: 65px;
+    z-index: 90;
+  }
+  .tab-btn {
+    padding: 14px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab-btn:hover { color: var(--blue); }
+  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .tab-btn .tab-close {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--gray-100); color: var(--text-muted);
+    border: none; cursor: pointer;
+    font-size: 11px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .tab-btn .tab-close:hover { background: var(--red-light); color: var(--red); }
+  .add-tab-btn {
+    padding: 10px 16px;
+    margin-left: 8px;
+    border: 1px dashed var(--gray-200);
+    background: none;
+    cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    color: var(--blue);
+    border-radius: var(--radius);
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .add-tab-btn:hover { background: var(--blue-light); }
+
+  .content { max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .progress-bar-wrap { margin-bottom: 28px; }
+  .progress-stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .progress-label { font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
+  .progress-pct { font-size: 13px; font-weight: 600; color: var(--blue); font-family: 'IBM Plex Mono', monospace; }
+  .progress-bar { height: 4px; background: var(--gray-100); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--blue); border-radius: 2px; transition: width 0.3s; }
+
+  .phase-block { margin-bottom: 32px; }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .phase-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .phase-badge.urgente { background: var(--red-light); color: var(--red); }
+  .phase-badge.em-andamento { background: var(--amber-light); color: var(--amber); }
+  .phase-badge.proxima { background: var(--blue-light); color: var(--blue); }
+  .phase-badge.montagem { background: var(--teal-light); color: var(--teal); }
+  .phase-badge.evento { background: #EDE9FE; color: #534AB7; }
+  .phase-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .phase-deadline { font-size: 11px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; margin-left: auto; }
+  .phase-divider { flex: 1; height: 1px; background: var(--gray-100); }
+
+  .task-list { display: flex; flex-direction: column; gap: 2px; }
+  .task-row {
+    background: var(--white);
+    border: 1px solid var(--gray-100);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.15s;
+  }
+  .task-row:hover { border-color: var(--gray-200); }
+  .task-row.done { opacity: 0.5; }
+  .task-row.done .task-text { text-decoration: line-through; }
+  .task-row.flash-update {
+    animation: flashRow 0.8s ease;
+  }
+  @keyframes flashRow {
+    0% { background: var(--blue-light); border-color: var(--blue-mid); }
+    100% { background: var(--white); border-color: var(--gray-100); }
+  }
+  .task-check {
+    width: 18px; height: 18px; min-width: 18px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 11px;
+    color: white;
+  }
+  .task-check:hover { border-color: var(--blue); }
+  .task-check.checked { background: var(--blue); border-color: var(--blue); }
+  .task-text { flex: 1; font-size: 13px; color: var(--text); line-height: 1.4; }
+  .task-resp {
+    border: none;
+    border-bottom: 1px solid var(--gray-100);
+    background: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 110px;
+    max-width: 140px;
+    padding: 2px 4px;
+    outline: none;
+    text-align: right;
+    transition: border-color 0.15s;
+  }
+  .task-resp:focus { border-color: var(--blue); color: var(--text); }
+  .task-resp::placeholder { color: var(--gray-200); }
+  .task-del {
+    border: none; background: none; cursor: pointer;
+    color: var(--gray-200); font-size: 16px; line-height: 1;
+    padding: 2px 4px; border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .task-del:hover { color: var(--red); background: var(--red-light); }
+  .add-task-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 6px;
+  }
+  .add-task-input {
+    flex: 1; border: 1px dashed var(--gray-200); border-radius: var(--radius);
+    padding: 8px 12px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+    background: none; outline: none; color: var(--text);
+    transition: border-color 0.15s;
+  }
+  .add-task-input:focus { border-color: var(--blue); }
+  .add-task-btn {
+    padding: 8px 14px; border: none; background: var(--blue);
+    color: white; border-radius: var(--radius); cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 500;
+    transition: opacity 0.15s;
+  }
+  .add-task-btn:hover { opacity: 0.85; }
+
+  /* Participant tab */
+  .participant-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--gray-100);
+  }
+  .participant-name-edit {
+    font-size: 20px; font-weight: 600; border: none;
+    background: none; outline: none; color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif; flex: 1;
+    border-bottom: 2px solid transparent; padding-bottom: 2px;
+    transition: border-color 0.15s;
+  }
+  .participant-name-edit:focus { border-bottom-color: var(--blue); }
+  .participant-status-badge {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    font-weight: 500; cursor: pointer; border: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
+  }
+  .info-field { display: flex; flex-direction: column; gap: 4px; }
+  .info-label { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .info-input {
+    border: 1px solid var(--gray-100); border-radius: var(--radius);
+    padding: 8px 10px; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px; background: var(--white); outline: none; color: var(--text);
+    transition: border-color 0.15s;
+  }
+  .info-input:focus { border-color: var(--blue); }
+  .toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggle-opt {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--gray-200);
+    cursor: pointer; font-size: 12px; background: none; font-family: 'IBM Plex Sans', sans-serif;
+    color: var(--text-muted); transition: all 0.15s;
+  }
+  .toggle-opt.active-yes { background: var(--teal-light); border-color: var(--teal); color: var(--teal); }
+  .toggle-opt.active-no { background: var(--red-light); border-color: var(--red); color: var(--red); }
+  .checklist-section-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 20px 0 10px; }
+
+  .empty-state { text-align: center; padding: 60px 24px; color: var(--text-muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+  .empty-title { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--white); border-radius: var(--radius-lg);
+    padding: 24px; width: 360px; max-width: 90vw;
+  }
+  .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+  .modal-input {
+    width: 100%; border: 1px solid var(--gray-200); border-radius: var(--radius);
+    padding: 10px 12px; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; outline: none; color: var(--text);
+    transition: border-color 0.15s; margin-bottom: 16px;
+  }
+  .modal-input:focus { border-color: var(--blue); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-cancel {
+    padding: 8px 16px; border: 1px solid var(--gray-200); background: none;
+    border-radius: var(--radius); cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: var(--text-muted);
+  }
+  .btn-confirm {
+    padding: 8px 16px; border: none; background: var(--blue);
+    border-radius: var(--radius); cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: white; font-weight: 500;
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 16px; }
+    .content { padding: 20px 16px 60px; }
+    .info-grid { grid-template-columns: 1fr; }
+    .task-resp { max-width: 90px; min-width: 80px; }
+    #config-banner input { width: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Credenciais já configuradas -->
+
+<header>
+  <div class="header-left">
+    <span class="logo-badge">PS JÚNIOR</span>
+    <div>
+      <div class="header-title">Navega — Infraestrutura</div>
+      <div class="header-date">Instituto Caldeira · Porto Alegre</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div id="online-users"></div>
+    <div class="countdown">
+      <div class="countdown-days" id="countdown-days">—</div>
+      <div class="countdown-label">dias p/ evento</div>
+    </div>
+  </div>
+</header>
+
+<div class="tabs-bar" id="tabs-bar">
+  <button class="tab-btn active" data-tab="main" onclick="switchTab('main')">
+    Infraestrutura Geral
+  </button>
+  <div id="participant-tabs"></div>
+  <button class="add-tab-btn" onclick="openAddModal()">+ Adicionar empresa</button>
+</div>
+
+<div class="content">
+  <div id="tab-main" class="tab-content"></div>
+  <div id="tab-participants" class="tab-content" style="display:none"></div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Nova empresa participante</div>
+    <input class="modal-input" id="modal-input" placeholder="Nome da empresa" />
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmAddParticipant()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync status pill -->
+<div id="sync-status">
+  <div class="dot"></div>
+  <span id="sync-label">sincronizado</span>
+</div>
+
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIGURAÇÃO SUPABASE
+//  Cole aqui seus valores ou use o banner acima na interface
+// ═══════════════════════════════════════════════════════════
+let SUPABASE_URL = 'https://dxioqrhmuylbyhzujwsr.supabase.co';
+let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4aW9xcmhtdXlsYnloenVqd3NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5OTEzMDUsImV4cCI6MjA5NTU2NzMwNX0.rZcschRXRBNXhURYY1aSdJm0hO6uo52JuHl47i-YhWw';
+const DB_TABLE = 'navega_state';
+const DB_ROW_ID = 'navega_infra_v3';     // chave única do documento
+const PRESENCE_CHANNEL = 'navega-presence';
+
+let supaClient = null;
+let realtimeChannel = null;
+let presenceChannel = null;
+let isSyncing = false;
+let syncTimeout = null;
+let localUserId = localStorage.getItem('navega_uid') || uid();
+let localUserColor = localStorage.getItem('navega_color') || randomColor();
+localStorage.setItem('navega_uid', localUserId);
+localStorage.setItem('navega_color', localUserColor);
+
+function randomColor() {
+  const colors = ['#1A6EBD','#0F6E56','#8B46C1','#C14630','#BA7517','#2563EB','#059669'];
+  const c = colors[Math.floor(Math.random()*colors.length)];
+  localStorage.setItem('navega_color', c);
+  return c;
+}
+
+function initSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  try {
+    supaClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    loadFromSupabase();
+    subscribeRealtime();
+    subscribePresence();
+    showSync('syncing', 'conectando…');
+  } catch(e) {
+    console.error('Supabase init error:', e);
+    showSync('error', 'erro de conexão');
+  }
+}
+
+// ── Sync status UI ────────────────────────────────────────
+function showSync(type, label) {
+  const el = document.getElementById('sync-status');
+  const lb = document.getElementById('sync-label');
+  el.className = 'visible ' + (type || '');
+  lb.textContent = label || '';
+  clearTimeout(syncTimeout);
+  if (type === 'ok') {
+    syncTimeout = setTimeout(() => el.classList.remove('visible'), 2500);
+  }
+}
+
+// ── Load / Save ───────────────────────────────────────────
+async function loadFromSupabase() {
+  if (!supaClient) return;
+  showSync('syncing', 'carregando…');
+  try {
+    const { data, error } = await supaClient
+      .from(DB_TABLE)
+      .select('payload')
+      .eq('id', DB_ROW_ID)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+    if (data && data.payload) {
+      const remote = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
+      state.phases = remote.phases || state.phases;
+      state.participants = remote.participants || [];
+    }
+    showSync('ok', 'sincronizado');
+  } catch(e) {
+    console.error('Load error:', e);
+    showSync('error', 'falha ao carregar');
+  }
+  renderTabsBar();
+  renderMain();
+}
+
+async function saveToSupabase() {
+  if (!supaClient) { saveLocal(); return; }
+  isSyncing = true;
+  showSync('syncing', 'salvando…');
+  try {
+    const payload = JSON.stringify({ phases: state.phases, participants: state.participants });
+    const { error } = await supaClient
+      .from(DB_TABLE)
+      .upsert({ id: DB_ROW_ID, payload, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    if (error) throw error;
+    showSync('ok', 'sincronizado');
+  } catch(e) {
+    console.error('Save error:', e);
+    showSync('error', 'falha ao salvar');
+    saveLocal(); // fallback
+  }
+  isSyncing = false;
+}
+
+function saveLocal() {
+  try { localStorage.setItem('navega_infra_v3', JSON.stringify(state)); } catch(e) {}
+}
+
+function saveState() {
+  saveLocal();
+  clearTimeout(window._debounceTimer);
+  window._debounceTimer = setTimeout(saveToSupabase, 600);
+}
+
+// ── Realtime subscription ─────────────────────────────────
+function subscribeRealtime() {
+  if (!supaClient) return;
+  if (realtimeChannel) realtimeChannel.unsubscribe();
+
+  realtimeChannel = supaClient
+    .channel('db-changes')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: DB_TABLE,
+      filter: `id=eq.${DB_ROW_ID}`
+    }, (payload) => {
+      if (isSyncing) return;  // ignore our own saves echoed back
+      const remote = typeof payload.new.payload === 'string'
+        ? JSON.parse(payload.new.payload)
+        : payload.new.payload;
+      state.phases = remote.phases || state.phases;
+      state.participants = remote.participants || [];
+      showSync('ok', 'atualizado por outro usuário');
+      const activeTab = state.activeTab;
+      renderTabsBar();
+      if (activeTab === 'main') {
+        renderMain(true);
+      } else {
+        renderParticipantTab(activeTab);
+      }
+    })
+    .subscribe();
+}
+
+// ── Presence (quem está online) ───────────────────────────
+let onlineUsers = {};
+
+function subscribePresence() {
+  if (!supaClient) return;
+  if (presenceChannel) presenceChannel.unsubscribe();
+
+  presenceChannel = supaClient.channel(PRESENCE_CHANNEL, {
+    config: { presence: { key: localUserId } }
+  });
+
+  presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const presenceState = presenceChannel.presenceState();
+      onlineUsers = {};
+      Object.entries(presenceState).forEach(([key, arr]) => {
+        if (arr[0]) onlineUsers[key] = arr[0];
+      });
+      renderOnlineUsers();
+    })
+    .on('presence', { event: 'join' }, ({ newPresences }) => {
+      newPresences.forEach(p => { onlineUsers[p.key || localUserId] = p; });
+      renderOnlineUsers();
+    })
+    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      leftPresences.forEach(p => { delete onlineUsers[p.key || p.user_id]; });
+      renderOnlineUsers();
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({
+          user_id: localUserId,
+          color: localUserColor,
+          initials: getInitials(),
+          online_at: new Date().toISOString()
+        });
+      }
+    });
+}
+
+function getInitials() {
+  const n = localStorage.getItem('navega_name') || '';
+  if (n) return n.slice(0,2).toUpperCase();
+  return '?';
+}
+
+function renderOnlineUsers() {
+  const el = document.getElementById('online-users');
+  const users = Object.values(onlineUsers);
+  if (!users.length) { el.innerHTML = ''; return; }
+  el.innerHTML = users.slice(0, 8).map(u =>
+    `<div class="user-avatar" style="background:${u.color || '#1A6EBD'}" title="${u.initials || '?'}">${u.initials || '?'}</div>`
+  ).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  DADOS PADRÃO
+// ══════════════════════════════════════════════════════════
+const EVENT_DATE = new Date('2026-06-20T09:30:00');
+
+const DEFAULT_PHASES = [
+  {
+    id:'p1', label:'URGENTE', badgeClass:'urgente',
+    title:'Definições Urgentes',
+    deadline:'até 03/06 — 17 dias antes',
+    tasks:[
+      {id:'t1a', text:'Confirmar aluguel do espaço para 19/06 (dia de montagem)', resp:'', done:false},
+      {id:'t1b', text:'Definir se haverá coffee break junto à Coordenação Geral', resp:'', done:false},
+      {id:'t1c', text:'Alinhar com Comercial o que foi prometido a cada empresa de stand', resp:'', done:false},
+      {id:'t1d', text:'Definir critérios de posicionamento das empresas nos stands', resp:'', done:false},
+      {id:'t1e', text:'Iniciar contato com Ambev (água + refrigerante)', resp:'', done:false},
+      {id:'t1f', text:'Definir quem acompanha montagem (19/06) e desmontagem (20/06)', resp:'', done:false},
+    ]
+  },
+  {
+    id:'p2', label:'2 SEMANAS ANTES', badgeClass:'em-andamento',
+    title:'Logística e Fornecedores',
+    deadline:'até 06/06',
+    tasks:[
+      {id:'t2a', text:'Confirmar horário de entrada da empresa de stands no dia 19/06 e 20/06', resp:'', done:false},
+      {id:'t2b', text:'Alinhar regras de carga/descarga: PS + Caldeira + Empresa de Stands', resp:'', done:false},
+      {id:'t2c', text:'Definir espaço para credenciamento junto ao Caldeira', resp:'', done:false},
+      {id:'t2d', text:'Confirmar definição final de acesso do público ao espaço', resp:'', done:false},
+      {id:'t2e', text:'Validar quais materiais físicos são permitidos pelo Caldeira', resp:'', done:false},
+      {id:'t2f', text:'Confirmar custo adicional dos espaços para montagem/desmontagem', resp:'', done:false},
+      {id:'t2g', text:'Viabilizar parceria com Caldeira para custo de montagem/desmontagem', resp:'', done:false},
+      {id:'t2h', text:'Buscar parceria para almoço', resp:'', done:false},
+      {id:'t2i', text:'Definir camarim e apoio a palestrantes (quem recebe, onde)', resp:'', done:false},
+      {id:'t2j', text:'Confirmar com Caldeira como vai funcionar a questão de slides dos palestrantes', resp:'', done:false},
+    ]
+  },
+  {
+    id:'p3', label:'10 DIAS ANTES', badgeClass:'proxima',
+    title:'Materiais e Artes',
+    deadline:'até 10/06',
+    tasks:[
+      {id:'t3a', text:'Fechar layout final da arena de stands', resp:'', done:false},
+      {id:'t3b', text:'Centralizar artes e logos de cada empresa (alinhar com EXP PART)', resp:'', done:false},
+      {id:'t3c', text:'Produzir/solicitar backdrop do evento', resp:'', done:false},
+      {id:'t3d', text:'Definir e produzir sinalização interna do evento', resp:'', done:false},
+      {id:'t3e', text:'Definir e organizar materiais do stand da PS', resp:'', done:false},
+      {id:'t3f', text:'Pensar e definir inovações visuais para o dia do evento', resp:'', done:false},
+    ]
+  },
+  {
+    id:'p4', label:'1 SEMANA ANTES', badgeClass:'proxima',
+    title:'Confirmações Finais',
+    deadline:'até 13/06',
+    tasks:[
+      {id:'t4a', text:'Confirmar necessidade elétrica de cada empresa (notebook, tomadas, qtd)', resp:'', done:false},
+      {id:'t4b', text:'Confirmar empresas com estrutura própria: horário, tipo, impacto no layout', resp:'', done:false},
+      {id:'t4c', text:'Se houver coffee: definir local, itens e horário', resp:'', done:false},
+      {id:'t4d', text:'Definir materiais necessários para as palestras no dia', resp:'', done:false},
+      {id:'t4e', text:'Confirmar desmontagem pós-evento: horário e responsáveis', resp:'', done:false},
+      {id:'t4f', text:'Checar se há restrições de materiais físicos válidas para o dia 20/06', resp:'', done:false},
+    ]
+  },
+  {
+    id:'p5', label:'19/06 — MONTAGEM', badgeClass:'montagem',
+    title:'Dia de Montagem',
+    deadline:'19/06 · horário a confirmar',
+    tasks:[
+      {id:'t5a', text:'Receber empresa de stands no horário combinado', resp:'', done:false},
+      {id:'t5b', text:'Acompanhar e supervisionar montagem dos stands', resp:'', done:false},
+      {id:'t5c', text:'Verificar distribuição elétrica de cada stand', resp:'', done:false},
+      {id:'t5d', text:'Posicionar e fixar backdrop', resp:'', done:false},
+      {id:'t5e', text:'Instalar sinalização interna', resp:'', done:false},
+      {id:'t5f', text:'Montar e organizar stand da PS', resp:'', done:false},
+      {id:'t5g', text:'Verificar espaço de credenciamento montado corretamente', resp:'', done:false},
+      {id:'t5h', text:'Testar equipamentos de apresentação (projetor, slides)', resp:'', done:false},
+      {id:'t5i', text:'Verificar camarim de palestrantes', resp:'', done:false},
+    ]
+  },
+  {
+    id:'p6', label:'20/06 — EVENTO', badgeClass:'evento',
+    title:'Dia do Evento',
+    deadline:'9h30 às 18h00',
+    tasks:[
+      {id:'t6a', text:'Abertura do espaço e última revisão antes do público', resp:'', done:false},
+      {id:'t6b', text:'Receber representantes de cada empresa nos stands', resp:'', done:false},
+      {id:'t6c', text:'Receber e apoiar palestrantes (camarim, slides, materiais)', resp:'', done:false},
+      {id:'t6d', text:'Gestão do credenciamento durante o evento', resp:'', done:false},
+      {id:'t6e', text:'Gestão e reposição do coffee break (se houver)', resp:'', done:false},
+      {id:'t6f', text:'Apoio geral durante todo o evento', resp:'', done:false},
+      {id:'t6g', text:'Coordenar desmontagem pós-evento', resp:'', done:false},
+    ]
+  },
+];
+
+let state = {
+  phases: JSON.parse(JSON.stringify(DEFAULT_PHASES)),
+  participants: [],
+  activeTab: 'main',
+};
+
+// ══════════════════════════════════════════════════════════
+//  FUNÇÕES DE RENDERIZAÇÃO
+// ══════════════════════════════════════════════════════════
+function uid() { return 'id_' + Math.random().toString(36).slice(2,9); }
+
+function calcCountdown() {
+  const now = new Date();
+  const diff = EVENT_DATE - now;
+  const days = Math.max(0, Math.ceil(diff / 86400000));
+  document.getElementById('countdown-days').textContent = days;
+}
+
+function switchTab(tabId) {
+  state.activeTab = tabId;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabId);
+  });
+  document.getElementById('tab-main').style.display = tabId === 'main' ? '' : 'none';
+  document.getElementById('tab-participants').style.display = tabId !== 'main' ? '' : 'none';
+  if (tabId !== 'main') {
+    renderParticipantTab(tabId);
+  } else {
+    renderMain();
+  }
+}
+
+function renderTabsBar() {
+  const container = document.getElementById('participant-tabs');
+  container.innerHTML = state.participants.map(p => `
+    <button class="tab-btn ${state.activeTab === p.id ? 'active' : ''}" data-tab="${p.id}" onclick="switchTab('${p.id}')">
+      ${escHtml(p.name)}
+      <span class="tab-close" onclick="event.stopPropagation(); removeParticipant('${p.id}')" title="Remover">×</span>
+    </button>
+  `).join('');
+}
+
+function renderMain(flash) {
+  const container = document.getElementById('tab-main');
+  const allTasks = state.phases.flatMap(p => p.tasks);
+  const done = allTasks.filter(t => t.done).length;
+  const pct = allTasks.length ? Math.round((done/allTasks.length)*100) : 0;
+
+  container.innerHTML = `
+    <div class="progress-bar-wrap">
+      <div class="progress-stats">
+        <span class="progress-label">${done} de ${allTasks.length} tarefas concluídas</span>
+        <span class="progress-pct">${pct}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    ${state.phases.map(phase => renderPhase(phase)).join('')}
+  `;
+}
+
+function renderPhase(phase) {
+  const donePh = phase.tasks.filter(t => t.done).length;
+  return `
+    <div class="phase-block" id="phase-${phase.id}">
+      <div class="phase-header">
+        <span class="phase-badge ${phase.badgeClass}">${phase.label}</span>
+        <span class="phase-title">${escHtml(phase.title)}</span>
+        <span class="phase-divider"></span>
+        <span class="phase-deadline">${escHtml(phase.deadline)} &nbsp;·&nbsp; ${donePh}/${phase.tasks.length}</span>
+      </div>
+      <div class="task-list" id="list-${phase.id}">
+        ${phase.tasks.map(t => renderTask(phase.id, t)).join('')}
+      </div>
+      <div class="add-task-row">
+        <input class="add-task-input" id="newtask-${phase.id}" placeholder="+ adicionar tarefa nesta fase..." onkeydown="if(event.key==='Enter') addTask('${phase.id}')" />
+        <button class="add-task-btn" onclick="addTask('${phase.id}')">Adicionar</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTask(phaseId, task) {
+  return `
+    <div class="task-row ${task.done ? 'done' : ''}" id="task-${task.id}">
+      <button class="task-check ${task.done ? 'checked' : ''}" onclick="toggleTask('${phaseId}','${task.id}')" title="Marcar como feita">
+        ${task.done ? '✓' : ''}
+      </button>
+      <span class="task-text">${escHtml(task.text)}</span>
+      <input class="task-resp" value="${escHtml(task.resp)}" placeholder="Responsável"
+        onchange="setResp('${phaseId}','${task.id}',this.value)" />
+      <button class="task-del" onclick="deleteTask('${phaseId}','${task.id}')" title="Remover tarefa">×</button>
+    </div>
+  `;
+}
+
+function toggleTask(phaseId, taskId) {
+  const phase = state.phases.find(p => p.id === phaseId);
+  const task = phase.tasks.find(t => t.id === taskId);
+  task.done = !task.done;
+  saveState();
+  renderMain();
+}
+
+function setResp(phaseId, taskId, val) {
+  const phase = state.phases.find(p => p.id === phaseId);
+  const task = phase.tasks.find(t => t.id === taskId);
+  task.resp = val;
+  saveState();
+}
+
+function deleteTask(phaseId, taskId) {
+  const phase = state.phases.find(p => p.id === phaseId);
+  phase.tasks = phase.tasks.filter(t => t.id !== taskId);
+  saveState();
+  renderMain();
+}
+
+function addTask(phaseId) {
+  const input = document.getElementById('newtask-' + phaseId);
+  const text = input.value.trim();
+  if (!text) return;
+  const phase = state.phases.find(p => p.id === phaseId);
+  phase.tasks.push({ id: uid(), text, resp: '', done: false });
+  input.value = '';
+  saveState();
+  renderMain();
+}
+
+// ── Participantes ─────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('modal-input').focus(), 50);
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('modal-input').value = '';
+}
+function confirmAddParticipant() {
+  const name = document.getElementById('modal-input').value.trim();
+  if (!name) return;
+  const p = {
+    id: uid(),
+    name,
+    contato: '', email: '', tel: '',
+    modeloStand: '',
+    artesStatus: 'pendente',
+    tomada: '',
+    estruturaPropria: '',
+    materiaisExtras: '',
+    horarioChegada: '',
+    numPessoas: '',
+    notas: '',
+    checklist: [
+      { id: uid(), text: 'Confirmar modelo de stand contratado', done: false },
+      { id: uid(), text: 'Receber logo e artes do stand', done: false },
+      { id: uid(), text: 'Confirmar necessidade de tomada', done: false },
+      { id: uid(), text: 'Confirmar se levará estrutura própria', done: false },
+      { id: uid(), text: 'Confirmar horário previsto de chegada', done: false },
+      { id: uid(), text: 'Confirmar número de pessoas nos stands', done: false },
+      { id: uid(), text: 'Briefing enviado / stand alinhado', done: false },
+    ]
+  };
+  state.participants.push(p);
+  closeModal();
+  saveState();
+  renderTabsBar();
+  switchTab(p.id);
+}
+
+function removeParticipant(id) {
+  if (!confirm('Remover esta empresa?')) return;
+  state.participants = state.participants.filter(p => p.id !== id);
+  saveState();
+  renderTabsBar();
+  switchTab('main');
+}
+
+function renderParticipantTab(id) {
+  const p = state.participants.find(x => x.id === id);
+  if (!p) return;
+  const container = document.getElementById('tab-participants');
+  const artStatus = {'recebido':'✓ Recebido','pendente':'⏳ Pendente','nao-aplica':'— Não aplica'}[p.artesStatus] || 'Pendente';
+
+  const donePt = p.checklist.filter(t=>t.done).length;
+
+  container.innerHTML = `
+    <div class="participant-header">
+      <input class="participant-name-edit" value="${escHtml(p.name)}" placeholder="Nome da empresa"
+        onchange="updateParticipant('${id}','name',this.value)" />
+      <button class="participant-status-badge" style="background:${p.artesStatus==='recebido'?'var(--teal-light)':'var(--amber-light)'}; color:${p.artesStatus==='recebido'?'var(--teal)':'var(--amber)'}; border:1px solid ${p.artesStatus==='recebido'?'var(--teal)':'var(--amber)'};"
+        onclick="cycleArtes('${id}')">${artStatus}</button>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-field">
+        <label class="info-label">Pessoa de contato</label>
+        <input class="info-input" value="${escHtml(p.contato)}" placeholder="Nome" onchange="updateParticipant('${id}','contato',this.value)" />
+      </div>
+      <div class="info-field">
+        <label class="info-label">E-mail / Telefone</label>
+        <input class="info-input" value="${escHtml(p.email)}" placeholder="email ou telefone" onchange="updateParticipant('${id}','email',this.value)" />
+      </div>
+      <div class="info-field">
+        <label class="info-label">Modelo de stand contratado</label>
+        <input class="info-input" value="${escHtml(p.modeloStand)}" placeholder="Ex: Stand Padrão / Premium" onchange="updateParticipant('${id}','modeloStand',this.value)" />
+      </div>
+      <div class="info-field">
+        <label class="info-label">Horário previsto de chegada</label>
+        <input class="info-input" type="time" value="${escHtml(p.horarioChegada)}" onchange="updateParticipant('${id}','horarioChegada',this.value)" />
+      </div>
+      <div class="info-field">
+        <label class="info-label">Número de pessoas no stand</label>
+        <input class="info-input" type="number" value="${escHtml(p.numPessoas)}" placeholder="Ex: 2" onchange="updateParticipant('${id}','numPessoas',this.value)" />
+      </div>
+      <div class="info-field">
+        <label class="info-label">Notas / Observações</label>
+        <input class="info-input" value="${escHtml(p.notas)}" placeholder="Observações gerais" onchange="updateParticipant('${id}','notas',this.value)" />
+      </div>
+    </div>
+
+    <div class="info-field" style="margin-bottom:16px">
+      <label class="info-label" style="margin-bottom:6px; display:block">Precisa de tomada?</label>
+      <div class="toggle-group">
+        <button class="toggle-opt ${p.tomada==='sim'?'active-yes':''}" onclick="setToggle('${id}','tomada','sim')">Sim</button>
+        <button class="toggle-opt ${p.tomada==='nao'?'active-no':''}" onclick="setToggle('${id}','tomada','nao')">Não</button>
+        <button class="toggle-opt" style="${p.tomada===''?'background:var(--gray-100); border-color:var(--gray-200); color:var(--text-muted)':''}" onclick="setToggle('${id}','tomada','')">A confirmar</button>
+      </div>
+    </div>
+
+    <div class="info-field" style="margin-bottom:16px">
+      <label class="info-label" style="margin-bottom:6px; display:block">Levará estrutura própria?</label>
+      <div class="toggle-group">
+        <button class="toggle-opt ${p.estruturaPropria==='sim'?'active-yes':''}" onclick="setToggle('${id}','estruturaPropria','sim')">Sim</button>
+        <button class="toggle-opt ${p.estruturaPropria==='nao'?'active-no':''}" onclick="setToggle('${id}','estruturaPropria','nao')">Não</button>
+        <button class="toggle-opt" style="${p.estruturaPropria===''?'background:var(--gray-100); border-color:var(--gray-200); color:var(--text-muted)':''}" onclick="setToggle('${id}','estruturaPropria','')">A confirmar</button>
+      </div>
+    </div>
+
+    <div class="info-field" style="margin-bottom:24px">
+      <label class="info-label" style="margin-bottom:6px; display:block">Levará materiais extras?</label>
+      <div class="toggle-group">
+        <button class="toggle-opt ${p.materiaisExtras==='sim'?'active-yes':''}" onclick="setToggle('${id}','materiaisExtras','sim')">Sim</button>
+        <button class="toggle-opt ${p.materiaisExtras==='nao'?'active-no':''}" onclick="setToggle('${id}','materiaisExtras','nao')">Não</button>
+        <button class="toggle-opt" style="${p.materiaisExtras===''?'background:var(--gray-100); border-color:var(--gray-200); color:var(--text-muted)':''}" onclick="setToggle('${id}','materiaisExtras','')">A confirmar</button>
+      </div>
+    </div>
+
+    <div class="checklist-section-title">Checklist desta empresa — ${donePt}/${p.checklist.length} concluídos</div>
+    <div class="task-list">
+      ${p.checklist.map(t => `
+        <div class="task-row ${t.done?'done':''}">
+          <button class="task-check ${t.done?'checked':''}" onclick="togglePTask('${id}','${t.id}')">${t.done?'✓':''}</button>
+          <span class="task-text">${escHtml(t.text)}</span>
+          <button class="task-del" onclick="deletePTask('${id}','${t.id}')">×</button>
+        </div>
+      `).join('')}
+    </div>
+    <div class="add-task-row" style="margin-top:6px">
+      <input class="add-task-input" id="newtask-p-${id}" placeholder="+ adicionar item de checklist..." onkeydown="if(event.key==='Enter') addPTask('${id}')" />
+      <button class="add-task-btn" onclick="addPTask('${id}')">Adicionar</button>
+    </div>
+  `;
+}
+
+function updateParticipant(id, field, val) {
+  const p = state.participants.find(x => x.id === id);
+  if (!p) return;
+  p[field] = val;
+  if (field === 'name') renderTabsBar();
+  saveState();
+}
+
+function cycleArtes(id) {
+  const p = state.participants.find(x => x.id === id);
+  const cycle = ['pendente','recebido','nao-aplica'];
+  const idx = cycle.indexOf(p.artesStatus);
+  p.artesStatus = cycle[(idx+1)%cycle.length];
+  saveState();
+  renderParticipantTab(id);
+}
+
+function setToggle(id, field, val) {
+  const p = state.participants.find(x => x.id === id);
+  p[field] = val;
+  saveState();
+  renderParticipantTab(id);
+}
+
+function togglePTask(pId, tId) {
+  const p = state.participants.find(x => x.id === pId);
+  const t = p.checklist.find(x => x.id === tId);
+  t.done = !t.done;
+  saveState();
+  renderParticipantTab(pId);
+}
+
+function deletePTask(pId, tId) {
+  const p = state.participants.find(x => x.id === pId);
+  p.checklist = p.checklist.filter(x => x.id !== tId);
+  saveState();
+  renderParticipantTab(pId);
+}
+
+function addPTask(pId) {
+  const input = document.getElementById('newtask-p-' + pId);
+  const text = input.value.trim();
+  if (!text) return;
+  const p = state.participants.find(x => x.id === pId);
+  p.checklist.push({ id: uid(), text, done: false });
+  input.value = '';
+  saveState();
+  renderParticipantTab(pId);
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+
+// Inicia Supabase automaticamente
+initSupabase();
+calcCountdown();
+setInterval(calcCountdown, 60000);
+</script>
+
+<!-- ═══════════════════════════════════════════════════════
+  INSTRUÇÕES DE CONFIGURAÇÃO DO SUPABASE
+  ════════════════════════════════════════════════════════
+
+  1. Acesse https://supabase.com e crie um projeto gratuito.
+
+  2. No SQL Editor do seu projeto, execute:
+
+     CREATE TABLE navega_state (
+       id TEXT PRIMARY KEY,
+       payload JSONB NOT NULL,
+       updated_at TIMESTAMPTZ DEFAULT now()
+     );
+
+     ALTER TABLE navega_state ENABLE ROW LEVEL SECURITY;
+
+     CREATE POLICY "allow_all" ON navega_state
+       FOR ALL USING (true) WITH CHECK (true);
+
+  3. Ative o Realtime para a tabela navega_state:
+     Database → Replication → navega_state → ligar UPDATE
+
+  4. Copie sua Project URL e anon key em:
+     Project Settings → API
+
+  5. Cole os valores no banner amarelo no topo da página
+     e clique em "Conectar".
+
+  Depois disso, qualquer edição feita em um dispositivo
+  aparecerá automaticamente em todos os outros em tempo real.
+════════════════════════════════════════════════════════ -->
+</body>
+</html>
