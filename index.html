@@ -142,9 +142,6 @@
     scrollbar-width: none; /* Firefox */
   }
   .tabs-bar::-webkit-scrollbar { display: none; } /* Chrome/Safari */
-  #participant-tabs {
-    display: contents; /* transparente pro flexbox pai */
-  }
   .tab-btn {
     padding: 14px 20px;
     border: none;
@@ -409,8 +406,7 @@
   <button class="tab-btn active" data-tab="main" onclick="switchTab('main')">
     Infraestrutura Geral
   </button>
-  <div id="participant-tabs" style="display:contents"></div>
-  <button class="add-tab-btn" onclick="openAddModal()">+ Adicionar empresa</button>
+  <button class="add-tab-btn" id="add-tab-btn" onclick="openAddModal()">+ Adicionar empresa</button>
 </div>
 
 <div class="content">
@@ -760,13 +756,23 @@ function switchTab(tabId) {
 }
 
 function renderTabsBar() {
-  const container = document.getElementById('participant-tabs');
-  container.innerHTML = state.participants.map(p => `
-    <button class="tab-btn ${state.activeTab === p.id ? 'active' : ''}" data-tab="${p.id}" onclick="switchTab('${p.id}')">
-      ${escHtml(p.name)}
-      <span class="tab-close" onclick="event.stopPropagation(); removeParticipant('${p.id}')" title="Remover">×</span>
-    </button>
-  `).join('');
+  // Remove tabs de empresas anteriores (tudo entre o 1o btn e o add-tab-btn)
+  const bar = document.getElementById('tabs-bar');
+  const addBtn = document.getElementById('add-tab-btn');
+  // Remove todos os .tab-btn de empresa (não o de "Infraestrutura Geral")
+  bar.querySelectorAll('.tab-btn[data-tab]').forEach(b => {
+    if (b.dataset.tab !== 'main') b.remove();
+  });
+  // Insere os novos antes do botão de adicionar
+  state.participants.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (state.activeTab === p.id ? ' active' : '');
+    btn.dataset.tab = p.id;
+    btn.onclick = () => switchTab(p.id);
+    btn.innerHTML = escHtml(p.name) +
+      '<span class="tab-close" title="Remover" onclick="event.stopPropagation();removeParticipant(\''+p.id+'\')">×</span>';
+    bar.insertBefore(btn, addBtn);
+  });
 }
 
 function renderMain(flash) {
