@@ -133,9 +133,17 @@
     align-items: center;
     gap: 0;
     overflow-x: auto;
+    overflow-y: visible;
+    flex-wrap: nowrap;
     position: sticky;
     top: 65px;
     z-index: 90;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .tabs-bar::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+  #participant-tabs {
+    display: contents; /* transparente pro flexbox pai */
   }
   .tab-btn {
     padding: 14px 20px;
@@ -148,6 +156,7 @@
     color: var(--text-muted);
     border-bottom: 2px solid transparent;
     white-space: nowrap;
+    flex-shrink: 0;
     transition: color 0.15s, border-color 0.15s;
     display: flex;
     align-items: center;
@@ -176,6 +185,7 @@
     border-radius: var(--radius);
     transition: background 0.15s;
     white-space: nowrap;
+    flex-shrink: 0;
   }
   .add-tab-btn:hover { background: var(--blue-light); }
 
@@ -399,7 +409,7 @@
   <button class="tab-btn active" data-tab="main" onclick="switchTab('main')">
     Infraestrutura Geral
   </button>
-  <div id="participant-tabs"></div>
+  <div id="participant-tabs" style="display:contents"></div>
   <button class="add-tab-btn" onclick="openAddModal()">+ Adicionar empresa</button>
 </div>
 
@@ -1050,36 +1060,5 @@ calcCountdown();
 setInterval(calcCountdown, 60000);
 </script>
 
-<!-- ═══════════════════════════════════════════════════════
-  INSTRUÇÕES DE CONFIGURAÇÃO DO SUPABASE
-  ════════════════════════════════════════════════════════
-
-  1. Acesse https://supabase.com e crie um projeto gratuito.
-
-  2. No SQL Editor do seu projeto, execute:
-
-     CREATE TABLE navega_state (
-       id TEXT PRIMARY KEY,
-       payload JSONB NOT NULL,
-       updated_at TIMESTAMPTZ DEFAULT now()
-     );
-
-     ALTER TABLE navega_state ENABLE ROW LEVEL SECURITY;
-
-     CREATE POLICY "allow_all" ON navega_state
-       FOR ALL USING (true) WITH CHECK (true);
-
-  3. Ative o Realtime para a tabela navega_state:
-     Database → Replication → navega_state → ligar UPDATE
-
-  4. Copie sua Project URL e anon key em:
-     Project Settings → API
-
-  5. Cole os valores no banner amarelo no topo da página
-     e clique em "Conectar".
-
-  Depois disso, qualquer edição feita em um dispositivo
-  aparecerá automaticamente em todos os outros em tempo real.
-════════════════════════════════════════════════════════ -->
 </body>
 </html>
